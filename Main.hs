@@ -104,7 +104,7 @@ main = do
         updateGlobalLogger "Pontarius.Xmpp" $ setLevel DEBUG
         result <- session
                      "gmail.com"
-                      (Just (\_ -> ( [plain "9erthalion6" Nothing "55555/////l//f[frcnj,jq"])
+                      (Just (\_ -> ( [plain "user" Nothing "pass"])
                                    , Nothing))
                     def { sessionStreamConfiguration = def
                             { tlsParams = defaultParamsClient
