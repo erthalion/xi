@@ -12,6 +12,7 @@ import           Data.ByteString           (ByteString)
 import qualified Data.ByteString           as S
 import qualified Data.Text.Encoding        as TE
 import qualified Data.Text as T
+import qualified Data.Text.IO as TO
 import           Data.Conduit              (MonadResource, Source, bracketP,
                                             runResourceT, ($$), ($=))
 import           Data.Conduit.Binary       (sourceFileRange)
@@ -27,6 +28,7 @@ import           Control.Monad.Reader
 import           Network.Xmpp
 import           Network.Xmpp.IM
 import           System.Log.Logger
+import           System.IO
 import           Network.TLS               (Params(pConnectVersion, pAllowedVersions, pCiphers), 
                                             Version(TLS10, TLS11, TLS12), defaultParamsClient)
 import           Network.TLS.Extra         (ciphersuite_medium)
@@ -41,17 +43,18 @@ type XIClient = ReaderT Configuration IO
 tryIO :: IO a -> IO (Either IOException a)
 tryIO = try
 
-printMsg [] = return ()
-printMsg (m:msgs) = do
-    print $ bodyContent m
-    printMsg msgs
 
-sourceFileOutputForever sess = forever $ do
+printMsg file [] = return ()
+printMsg file (m:msgs) = do
+    hFile <- openFile file AppendMode
+    TO.hPutStrLn hFile (bodyContent m)
+    printMsg file msgs
+
+
+sourceFileOutputForever sess file = forever $ do
     msg <- getMessage sess
-    printMsg $ imBody $ fromJust $ getIM msg
-    {-case answerMessage msg (messagePayload msg) of-}
-        {-Just answer -> putStrLn answer >> return ()-}
-        {-Nothing -> putStrLn "Received message with no sender."-}
+    let printMsgToFile = printMsg file
+    printMsgToFile $ imBody $ fromJust $ getIM msg
 
 
 sourceFileForever :: MonadResource m => FilePath -> Source m ByteString
@@ -103,7 +106,7 @@ main = do
         let identifier = snd channel
         let file = fst channel
 
-        _ <- forkIO $  sourceFileOutputForever sess
+        _ <- forkIO $  sourceFileOutputForever sess file
         listenOut sess channels
 
     establishConnection :: IO Session 
@@ -129,6 +132,10 @@ handleCommand :: Session -> String -> ByteString -> IO()
 handleCommand sess identifier message = do
     let contactJid = parseJid identifier
     sendMsg sess message contactJid
+    hFile <- openFile "out1" AppendMode
+    let messageText = TE.decodeUtf8 message
+    TO.hPutStrLn hFile messageText
+    hClose hFile
 
 
 sendMsg :: Session -> ByteString -> Jid -> IO()
