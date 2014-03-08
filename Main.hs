@@ -10,7 +10,8 @@ import           Control.Monad.IO.Class    (liftIO)
 import           Data.Maybe
 import           Data.ByteString           (ByteString)
 import qualified Data.ByteString           as S
-import qualified Data.Text.Encoding        as T
+import qualified Data.Text.Encoding        as TE
+import qualified Data.Text as T
 import           Data.Conduit              (MonadResource, Source, bracketP,
                                             runResourceT, ($$), ($=))
 import           Data.Conduit.Binary       (sourceFileRange)
@@ -40,8 +41,14 @@ type XIClient = ReaderT Configuration IO
 tryIO :: IO a -> IO (Either IOException a)
 tryIO = try
 
-{-sourceFileOutputForever sess = forever $ do-}
-    {-msg <- getMessage sess-}
+printMsg [] = return ()
+printMsg (m:msgs) = do
+    print $ bodyContent m
+    printMsg msgs
+
+sourceFileOutputForever sess = forever $ do
+    msg <- getMessage sess
+    printMsg $ imBody $ fromJust $ getIM msg
     {-case answerMessage msg (messagePayload msg) of-}
         {-Just answer -> putStrLn answer >> return ()-}
         {-Nothing -> putStrLn "Received message with no sender."-}
@@ -96,7 +103,7 @@ main = do
         let identifier = snd channel
         let file = fst channel
 
-        {-_ <- forkIO $  sourceFileOutputForever sess-}
+        _ <- forkIO $  sourceFileOutputForever sess
         listenOut sess channels
 
     establishConnection :: IO Session 
@@ -126,6 +133,6 @@ handleCommand sess identifier message = do
 
 sendMsg :: Session -> ByteString -> Jid -> IO()
 sendMsg sess message contactJid = do
-    let messageText = T.decodeUtf8 message
+    let messageText = TE.decodeUtf8 message
     let msgC = simpleIM contactJid messageText
     void $ sendMessage msgC sess
