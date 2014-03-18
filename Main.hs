@@ -38,22 +38,32 @@ data Configuration = Configuration {
     clientSession :: Session
 }
 
+type ContactList = [Contact]
+
+data Contact = Contact {
+    contactJid :: Jid,
+    name :: T.Text,
+    input :: IO Handle,
+    inputName :: String,
+    output :: IO Handle,
+    outputName :: String
+}
+
 type XIClient = ReaderT Configuration IO
 
 tryIO :: IO a -> IO (Either IOException a)
 tryIO = try
 
 
-printMsg file [] = return ()
-printMsg file (m:msgs) = do
-    hFile <- openFile file AppendMode
-    TO.hPutStrLn hFile (bodyContent m)
-    printMsg file msgs
+printMsg hFile [] = return ()
+printMsg hFile (m:msgs) = do
+    hFile >>= \handle -> TO.hPutStrLn handle (bodyContent m)
+    printMsg hFile msgs
 
 
-sourceFileOutputForever sess file = forever $ do
+sourceFileOutputForever sess contact = forever $ do
     msg <- getMessage sess
-    let printMsgToFile = printMsg file
+    let printMsgToFile = printMsg (input contact)
     printMsgToFile $ imBody $ fromJust $ getIM msg
 
 
@@ -85,29 +95,43 @@ main = do
     let outFiles = ["out1", "out2"]
     let identifiers = ["9erthalion.war6@gmail.com", "test2"]
 
+    let jid =  parseJid "9erthalion.war6@gmail.com"
+
+    let inFile = "in"
+    let inHFile = openFile inFile AppendMode
+
+    let outFile = "out"
+    let outHFile = openFile outFile AppendMode
+
     sess <- establishConnection
 
-    listenIn sess (zip inFiles identifiers)
-    listenOut sess (zip outFiles identifiers)
+    let contact = Contact {
+        contactJid=jid,
+        name="9erthalion6.war@gmail.com",
+        input=inHFile,
+        inputName=inFile,
+        output=outHFile,
+        outputName=outFile
+    }
+
+    let contactList = [contact]
+
+    listenIn sess contactList 
+    listenOut sess contactList
     forever $ threadDelay (10^6) 
   where
-    listenIn :: Session -> [(String, String)] -> IO ()
+    listenIn :: Session -> ContactList -> IO ()
     listenIn _ [] = return ()
-    listenIn sess (channel:channels) = do
-        let identifier = snd channel
-        let file = fst channel
-        let handleWithIdentifier = handleCommand sess identifier
-        _ <- forkIO $ runResourceT $ sourceFileForever file $$ CL.mapM_ (liftIO . handleWithIdentifier)
-        listenIn sess channels
+    listenIn sess (c:contacts) = do
+        let handleWithContact = handleCommand sess c
+        _ <- forkIO $ runResourceT $ sourceFileForever (inputName c) $$ CL.mapM_ (liftIO . handleWithContact)
+        listenIn sess contacts
 
-    listenOut :: Session -> [(String, String)] -> IO ()
+    listenOut :: Session -> ContactList -> IO ()
     listenOut _ [] = return ()
-    listenOut sess (channel:channels) = do
-        let identifier = snd channel
-        let file = fst channel
-
-        _ <- forkIO $  sourceFileOutputForever sess file
-        listenOut sess channels
+    listenOut sess (c:contacts) = do
+        _ <- forkIO $  sourceFileOutputForever sess c
+        listenOut sess contacts
 
     establishConnection :: IO Session 
     establishConnection = do
@@ -128,14 +152,11 @@ main = do
         return sess
 
 
-handleCommand :: Session -> String -> ByteString -> IO()
-handleCommand sess identifier message = do
-    let contactJid = parseJid identifier
-    sendMsg sess message contactJid
-    hFile <- openFile "out1" AppendMode
+handleCommand :: Session -> Contact -> ByteString -> IO()
+handleCommand sess contact message = do
+    sendMsg sess message (contactJid contact)
     let messageText = TE.decodeUtf8 message
-    TO.hPutStrLn hFile messageText
-    hClose hFile
+    output contact >>= \handle -> TO.hPutStrLn handle messageText
 
 
 sendMsg :: Session -> ByteString -> Jid -> IO()
