@@ -43,9 +43,9 @@ type ContactList = [Contact]
 data Contact = Contact {
     contactJid :: Jid,
     name :: T.Text,
-    input :: IO Handle,
+    input :: Handle,
     inputName :: String,
-    output :: IO Handle,
+    output :: Handle,
     outputName :: String
 }
 
@@ -57,7 +57,7 @@ tryIO = try
 
 printMsg hFile [] = return ()
 printMsg hFile (m:msgs) = do
-    hFile >>= \handle -> TO.hPutStrLn handle (bodyContent m)
+    TO.hPutStrLn hFile (bodyContent m)
     printMsg hFile msgs
 
 
@@ -98,10 +98,10 @@ main = do
     let jid =  parseJid "9erthalion.war6@gmail.com"
 
     let inFile = "in"
-    let inHFile = openFile inFile AppendMode
+    inHFile <- openFile inFile AppendMode
 
     let outFile = "out"
-    let outHFile = openFile outFile AppendMode
+    outHFile <- openFile outFile AppendMode
 
     sess <- establishConnection
 
@@ -156,7 +156,7 @@ handleCommand :: Session -> Contact -> ByteString -> IO()
 handleCommand sess contact message = do
     sendMsg sess message (contactJid contact)
     let messageText = TE.decodeUtf8 message
-    output contact >>= \handle -> TO.hPutStrLn handle messageText
+    TO.hPutStrLn (output contact) messageText
 
 
 sendMsg :: Session -> ByteString -> Jid -> IO()
