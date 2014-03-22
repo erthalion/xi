@@ -91,10 +91,6 @@ sourceFileForever fp' = bracketP startManager stopManager $ \manager -> do
 
 main :: IO ()
 main = do
-    let inFiles = ["in1", "in2"]
-    let outFiles = ["out1", "out2"]
-    let identifiers = ["9erthalion.war6@gmail.com", "test2"]
-
     let jid =  parseJid "9erthalion.war6@gmail.com"
 
     let inFile = "in"
