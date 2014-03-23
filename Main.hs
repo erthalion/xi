@@ -11,11 +11,12 @@ import           Data.Maybe
 import           Data.ByteString           (ByteString)
 import qualified Data.ByteString           as S
 import qualified Data.Text.Encoding        as TE
-import qualified Data.Text as T
-import qualified Data.Text.IO as TO
+import qualified Data.Text                 as T
+import qualified Data.Text.IO              as TO
+import qualified Data.ByteString.Char8     as BC
 import           Data.Conduit              (MonadResource, Source, bracketP,
-                                            runResourceT, ($$), ($=))
-import           Data.Conduit.Binary       (sourceFileRange)
+                                            runResourceT, ($$), ($=), yield)
+import           Data.Conduit.Binary       (sourceFileRange, sinkIOHandle)
 import qualified Data.Conduit.List         as CL
 import           Data.IORef                (IORef, modifyIORef, newIORef,
                                             readIORef)
@@ -43,9 +44,7 @@ type ContactList = [Contact]
 data Contact = Contact {
     contactJid :: Jid,
     name :: T.Text,
-    input :: Handle,
     inputName :: String,
-    output :: Handle,
     outputName :: String
 }
 
@@ -55,18 +54,16 @@ tryIO :: IO a -> IO (Either IOException a)
 tryIO = try
 
 
-printMsg hFile [] = do
-    hFlush hFile
-    return ()
-printMsg hFile (m:msgs) = do
-    TO.hPutStrLn hFile (bodyContent m)
-    printMsg hFile msgs
+printMsg file [] = return ()
+printMsg file (m:msgs) = do
+    let content = BC.pack $ T.unpack (bodyContent m) ++ "\n"
+    runResourceT $ yield content $$ sinkIOHandle $ openFile file AppendMode
+    printMsg file msgs
 
 
 sourceFileOutputForever sess contact = forever $ do
     msg <- getMessage sess
-    let printMsgToFile = printMsg (output contact)
-    printMsgToFile $ imBody $ fromJust $ getIM msg
+    printMsg (outputName contact) $ imBody $ fromJust $ getIM msg
 
 
 sourceFileForever :: MonadResource m => FilePath -> Source m ByteString
@@ -110,9 +107,7 @@ main = do
     let contact = Contact {
         contactJid=jid,
         name="9erthalion6.war@gmail.com",
-        input=inHFile,
         inputName=inFilePath,
-        output=outHFile,
         outputName=outFilePath
     }
 
@@ -157,9 +152,7 @@ main = do
 handleCommand :: Session -> Contact -> ByteString -> IO()
 handleCommand sess contact message = do
     sendMsg sess message (contactJid contact)
-    let messageText = TE.decodeUtf8 message
-    TO.hPutStrLn (output contact) messageText
-    hFlush $ output contact
+    runResourceT $ yield message $$ sinkIOHandle $ openFile (outputName contact) AppendMode
 
 
 sendMsg :: Session -> ByteString -> Jid -> IO()
