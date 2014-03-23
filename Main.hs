@@ -55,7 +55,9 @@ tryIO :: IO a -> IO (Either IOException a)
 tryIO = try
 
 
-printMsg hFile [] = return ()
+printMsg hFile [] = do
+    hFlush hFile
+    return ()
 printMsg hFile (m:msgs) = do
     TO.hPutStrLn hFile (bodyContent m)
     printMsg hFile msgs
@@ -63,7 +65,7 @@ printMsg hFile (m:msgs) = do
 
 sourceFileOutputForever sess contact = forever $ do
     msg <- getMessage sess
-    let printMsgToFile = printMsg (input contact)
+    let printMsgToFile = printMsg (output contact)
     printMsgToFile $ imBody $ fromJust $ getIM msg
 
 
@@ -89,15 +91,19 @@ sourceFileForever fp' = bracketP startManager stopManager $ \manager -> do
       where
         counter bs = liftIO $ modifyIORef consumedRef (+ fromIntegral (S.length bs))
 
+
+inFilePath :: FilePath
+inFilePath = "in"
+
+outFilePath :: FilePath
+outFilePath = "out"
+
 main :: IO ()
 main = do
     let jid =  parseJid "9erthalion.war6@gmail.com"
 
-    let inFile = "in"
-    inHFile <- openFile inFile AppendMode
-
-    let outFile = "out"
-    outHFile <- openFile outFile AppendMode
+    inHFile <- openFile inFilePath AppendMode
+    outHFile <- openFile outFilePath AppendMode
 
     sess <- establishConnection
 
@@ -105,9 +111,9 @@ main = do
         contactJid=jid,
         name="9erthalion6.war@gmail.com",
         input=inHFile,
-        inputName=inFile,
+        inputName=inFilePath,
         output=outHFile,
-        outputName=outFile
+        outputName=outFilePath
     }
 
     let contactList = [contact]
@@ -153,6 +159,7 @@ handleCommand sess contact message = do
     sendMsg sess message (contactJid contact)
     let messageText = TE.decodeUtf8 message
     TO.hPutStrLn (output contact) messageText
+    hFlush $ output contact
 
 
 sendMsg :: Session -> ByteString -> Jid -> IO()
