@@ -15,6 +15,7 @@ import qualified Data.Text                 as T
 import qualified Data.Text.IO              as TO
 import qualified Data.ByteString.Char8     as BC
 import qualified Data.Yaml.Config          as Y
+import qualified Data.Map                  as M
 import           Data.Conduit              (MonadResource, Source, bracketP,
                                             runResourceT, ($$), ($=), yield)
 import           Data.Conduit.Binary       (sourceFileRange, sinkIOHandle)
@@ -31,6 +32,7 @@ import           Network.Xmpp
 import           Network.Xmpp.IM
 import           System.Log.Logger
 import           System.IO
+import qualified System.Directory          as SD
 import           Network.TLS               (Params(pConnectVersion, pAllowedVersions, pCiphers), 
                                             Version(TLS10, TLS11, TLS12), defaultParamsClient)
 import           Network.TLS.Extra         (ciphersuite_medium)
@@ -99,7 +101,6 @@ outFilePath = "out"
 
 main :: IO ()
 main = do
-    let jid =  parseJid "9erthalion.war6@gmail.com"
     config <- Y.load "xi.yml"
 
     inHFile <- openFile inFilePath AppendMode
@@ -107,18 +108,40 @@ main = do
 
     sess <- establishConnection config
 
-    let contact = Contact {
-        contactJid=jid,
-        name="9erthalion6.war@gmail.com",
-        inputName=inFilePath,
-        outputName=outFilePath
-    }
-
-    let contactList = [contact]
+    roster <- getRoster sess
+    let contactList = map convert (M.elems $ items roster)
+    createFiles contactList
 
     runReaderT listen (Configuration sess contactList)
     forever $ threadDelay (10^6) 
   where
+    convert :: Item -> Contact
+    convert item = do
+        let filePath = (T.unpack $ jidToText $ riJid item) :: FilePath
+        let inFilePath = filePath ++ "/in"
+        let outFilePath = filePath ++ "/out"
+
+        Contact {
+            contactJid=(riJid item),
+            name=(jidToText $ riJid item),
+            inputName=inFilePath,
+            outputName=outFilePath
+        }
+
+    createFiles :: ContactList -> IO ()
+    createFiles [] = return ()
+    createFiles (c:contacts) = do
+        let filePath = (T.unpack $ jidToText $ contactJid c) :: FilePath
+        let inFilePath = filePath ++ "/in"
+        let outFilePath = filePath ++ "/out"
+
+        SD.createDirectory $ filePath
+        openFile inFilePath WriteMode
+        openFile outFilePath WriteMode
+
+        createFiles contacts
+
+
     listen :: XIConfig ()
     listen = do
         conf <- ask
