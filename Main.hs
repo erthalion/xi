@@ -14,6 +14,7 @@ import qualified Data.Text.Encoding        as TE
 import qualified Data.Text                 as T
 import qualified Data.Text.IO              as TO
 import qualified Data.ByteString.Char8     as BC
+import qualified Data.Yaml.Config          as Y
 import           Data.Conduit              (MonadResource, Source, bracketP,
                                             runResourceT, ($$), ($=), yield)
 import           Data.Conduit.Binary       (sourceFileRange, sinkIOHandle)
@@ -99,11 +100,12 @@ outFilePath = "out"
 main :: IO ()
 main = do
     let jid =  parseJid "9erthalion.war6@gmail.com"
+    config <- Y.load "xi.yml"
 
     inHFile <- openFile inFilePath AppendMode
     outHFile <- openFile outFilePath AppendMode
 
-    sess <- establishConnection
+    sess <- establishConnection config
 
     let contact = Contact {
         contactJid=jid,
@@ -138,12 +140,21 @@ main = do
         _ <- liftIO $ forkIO $  sourceFileOutputForever (clientSession conf) c
         listenOut contacts
 
-    establishConnection :: IO Session 
-    establishConnection = do
-        updateGlobalLogger "Pontarius.Xmpp" $ setLevel DEBUG
+    establishConnection :: Y.Config -> IO Session 
+    establishConnection config = do
+        connection <- Y.subconfig "Connection" config
+        client <- Y.subconfig "Client" config
+
+        debug <- Y.lookup "debug" client
+        server <- Y.lookup "server" connection
+        user <- Y.lookup "user" connection
+        password <- Y.lookup "password" connection
+
+        when debug $ updateGlobalLogger "Pontarius.Xmpp" $ setLevel DEBUG
+
         result <- session
-                     "gmail.com"
-                      (Just (\_ -> ( [plain "user" Nothing "pass"])
+                     server
+                      (Just (\_ -> ( [plain user Nothing password])
                                    , Nothing))
                     def { sessionStreamConfiguration = def
                             { tlsParams = defaultParamsClient

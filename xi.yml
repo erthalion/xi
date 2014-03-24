@@ -1,0 +1,7 @@
+Connection:
+    user: user
+    password: password
+    server: gmail.com
+
+Client:
+    debug: true
