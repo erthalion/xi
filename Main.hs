@@ -36,7 +36,8 @@ import           Network.TLS.Extra         (ciphersuite_medium)
 
 
 data Configuration = Configuration {
-    clientSession :: Session
+    clientSession :: Session,
+    contactList :: ContactList
 }
 
 type ContactList = [Contact]
@@ -48,7 +49,7 @@ data Contact = Contact {
     outputName :: String
 }
 
-type XIClient = ReaderT Configuration IO
+type XIConfig a = ReaderT Configuration IO a
 
 tryIO :: IO a -> IO (Either IOException a)
 tryIO = try
@@ -113,22 +114,29 @@ main = do
 
     let contactList = [contact]
 
-    listenIn sess contactList 
-    listenOut sess contactList
+    runReaderT listen (Configuration sess contactList)
     forever $ threadDelay (10^6) 
   where
-    listenIn :: Session -> ContactList -> IO ()
-    listenIn _ [] = return ()
-    listenIn sess (c:contacts) = do
-        let handleWithContact = handleCommand sess c
-        _ <- forkIO $ runResourceT $ sourceFileForever (inputName c) $$ CL.mapM_ (liftIO . handleWithContact)
-        listenIn sess contacts
+    listen :: XIConfig ()
+    listen = do
+        conf <- ask
+        listenIn $ contactList conf
+        listenOut $ contactList conf
 
-    listenOut :: Session -> ContactList -> IO ()
-    listenOut _ [] = return ()
-    listenOut sess (c:contacts) = do
-        _ <- forkIO $  sourceFileOutputForever sess c
-        listenOut sess contacts
+    listenIn :: ContactList -> XIConfig ()
+    listenIn [] = return ()
+    listenIn (c:contacts) = do
+        conf <- ask
+        let handleWithContact = handleCommand (clientSession conf) c
+        _ <- liftIO $ forkIO $ runResourceT $ sourceFileForever (inputName c) $$ CL.mapM_ (liftIO . handleWithContact)
+        listenIn contacts
+
+    listenOut :: ContactList -> XIConfig ()
+    listenOut [] = return ()
+    listenOut (c:contacts) = do
+        conf <- ask
+        _ <- liftIO $ forkIO $  sourceFileOutputForever (clientSession conf) c
+        listenOut contacts
 
     establishConnection :: IO Session 
     establishConnection = do
