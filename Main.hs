@@ -50,7 +50,7 @@ data Contact = Contact {
     name :: T.Text,
     inputName :: String,
     outputName :: String
-}
+} deriving (Show)
 
 type XIConfig a = ReaderT Configuration IO a
 
@@ -65,9 +65,15 @@ printMsg file (m:msgs) = do
     printMsg file msgs
 
 
-sourceFileOutputForever sess contact = forever $ do
+sourceFileOutputForever sess contactList = forever $ do
     msg <- getMessage sess
-    printMsg (outputName contact) $ imBody $ fromJust $ getIM msg
+    case (messageFrom msg) of
+        Just value -> do
+            let getByJid = \c -> (contactJid c) == (toBare value)
+            let contact = head $ filter getByJid contactList
+            liftIO $ print contact
+            printMsg (outputName contact) $ imBody $ fromJust $ getIM msg
+        Nothing -> return ()
 
 
 sourceFileForever :: MonadResource m => FilePath -> Source m ByteString
@@ -146,7 +152,7 @@ main = do
     listen = do
         conf <- ask
         listenIn $ contactList conf
-        listenOut $ contactList conf
+        listenOut
 
     listenIn :: ContactList -> XIConfig ()
     listenIn [] = return ()
@@ -156,12 +162,11 @@ main = do
         _ <- liftIO $ forkIO $ runResourceT $ sourceFileForever (inputName c) $$ CL.mapM_ (liftIO . handleWithContact)
         listenIn contacts
 
-    listenOut :: ContactList -> XIConfig ()
-    listenOut [] = return ()
-    listenOut (c:contacts) = do
+    listenOut :: XIConfig ()
+    listenOut = do
         conf <- ask
-        _ <- liftIO $ forkIO $  sourceFileOutputForever (clientSession conf) c
-        listenOut contacts
+        _ <- liftIO $ forkIO $ sourceFileOutputForever (clientSession conf) (contactList conf)
+        return ()
 
     establishConnection :: Y.Config -> IO Session 
     establishConnection config = do
