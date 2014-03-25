@@ -24,7 +24,7 @@ Set the *username*, *password*, *server* in the *xi.yml*, then run
 xi
 ```
 
-Client will make a several directories like *contact_name@server.com* with *in*/*out* files in the current directory.
+Client will make a several directories like **contact_name@server.com** with **in**/**out** files in the current directory.
 
 Links
 ====
