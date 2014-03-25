@@ -16,6 +16,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 executable xi
+  hs-source-dirs: src
   -- main-is:             
   Main-Is:             Main.hs
   -- other-modules:       
