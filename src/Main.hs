@@ -42,10 +42,6 @@ outFilePath = "out"
 main :: IO ()
 main = do
     config <- Y.load "xi.yml"
-
-    inHFile <- openFile inFilePath AppendMode
-    outHFile <- openFile outFilePath AppendMode
-
     sess <- establishConnection config
 
     roster <- getRoster sess
