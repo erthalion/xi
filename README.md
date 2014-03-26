@@ -28,4 +28,4 @@ Client will make a several directories like **contact_name@server.com** with **i
 
 Links
 ====
-
+[Blog post](http://erthalion.info/2014/03/25/xi/)
