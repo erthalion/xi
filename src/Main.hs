@@ -8,12 +8,14 @@ import           Control.Monad.IO.Class    (liftIO)
 import           Data.Maybe
 import           Data.ByteString           (ByteString)
 import qualified Data.ByteString           as S
+import qualified Data.ByteString.Char8     as SC
 import qualified Data.Text.Encoding        as TE
 import qualified Data.Text                 as T
 import qualified Data.Text.IO              as TO
 import qualified Data.ByteString.Char8     as BC
 import qualified Data.Yaml.Config          as Y
 import qualified Data.Map                  as M
+import           Data.Time                 (getZonedTime, ZonedTime)
 import           Data.Conduit              (MonadResource, Source, bracketP,
                                             runResourceT, ($$), ($=), yield)
 import           Data.Conduit.Binary       (sourceFileRange, sinkIOHandle)
@@ -29,6 +31,7 @@ import           Network.TLS.Extra         (ciphersuite_medium)
 
 import           Models
 import           FileSystem
+import           Text.Printf               as TP
 
 
 inFilePath :: FilePath
@@ -116,7 +119,8 @@ establishConnection config = do
 handleCommand :: Session -> Contact -> ByteString -> IO()
 handleCommand sess contact message = do
     sendMsg sess message (contactJid contact)
-    runResourceT $ yield message $$ sinkIOHandle $ openFile (outputName contact) AppendMode
+    localTime <- getZonedTime
+    runResourceT $ yield (prettify contact localTime message) $$ sinkIOHandle $ openFile (outputName contact) AppendMode
 
 
 sendMsg :: Session -> ByteString -> Jid -> IO()
@@ -124,3 +128,7 @@ sendMsg sess message contactJid = do
     let messageText = TE.decodeUtf8 message
     let msgC = simpleIM contactJid messageText
     void $ sendMessage msgC sess
+
+
+prettify :: Contact -> ZonedTime -> ByteString -> ByteString
+prettify contact time message = SC.pack (TP.printf "%s at %s: %s" (T.unpack $ jidToText $ contactJid contact) (show time) (SC.unpack message)::String)
