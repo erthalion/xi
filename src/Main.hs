@@ -7,17 +7,11 @@ import           Control.Monad             (forever, void, when)
 import           Control.Monad.IO.Class    (liftIO)
 import           Data.Maybe
 import           Data.ByteString           (ByteString)
-import qualified Data.ByteString           as S
-import qualified Data.ByteString.Char8     as SC
 import qualified Data.Text.Encoding        as TE
 import qualified Data.Text                 as T
-import qualified Data.Text.IO              as TO
-import qualified Data.ByteString.Char8     as BC
 import qualified Data.Yaml.Config          as Y
 import qualified Data.Map                  as M
 import           Data.Time                 (getZonedTime, ZonedTime)
-import           Data.Time.Format          (formatTime)
-import           System.Locale             (defaultTimeLocale)
 import           Data.Conduit              (MonadResource, Source, bracketP,
                                             runResourceT, ($$), ($=), yield)
 import           Data.Conduit.Binary       (sourceFileRange, sinkIOHandle)
@@ -33,7 +27,7 @@ import           Network.TLS.Extra         (ciphersuite_medium)
 
 import           Models
 import           FileSystem
-import           Text.Printf               as TP
+import           Utils
 
 
 inFilePath :: FilePath
@@ -130,10 +124,3 @@ sendMsg sess message contactJid = do
     let messageText = TE.decodeUtf8 message
     let msgC = simpleIM contactJid messageText
     void $ sendMessage msgC sess
-
-
-prettify :: Contact -> ZonedTime -> ByteString -> ByteString
-prettify contact time message = SC.pack (TP.printf "%s at %s: %s" (convertContact contact) (convertTime time) (SC.unpack message)::String)
-    where
-        convertContact = T.unpack . jidToText . contactJid
-        convertTime = formatTime defaultTimeLocale "%y/%m/%d %H:%M:%S"
