@@ -16,6 +16,8 @@ import qualified Data.ByteString.Char8     as BC
 import qualified Data.Yaml.Config          as Y
 import qualified Data.Map                  as M
 import           Data.Time                 (getZonedTime, ZonedTime)
+import           Data.Time.Format          (formatTime)
+import           System.Locale             (defaultTimeLocale)
 import           Data.Conduit              (MonadResource, Source, bracketP,
                                             runResourceT, ($$), ($=), yield)
 import           Data.Conduit.Binary       (sourceFileRange, sinkIOHandle)
@@ -131,4 +133,7 @@ sendMsg sess message contactJid = do
 
 
 prettify :: Contact -> ZonedTime -> ByteString -> ByteString
-prettify contact time message = SC.pack (TP.printf "%s at %s: %s" (T.unpack $ jidToText $ contactJid contact) (show time) (SC.unpack message)::String)
+prettify contact time message = SC.pack (TP.printf "%s at %s: %s" (convertContact contact) (convertTime time) (SC.unpack message)::String)
+    where
+        convertContact = T.unpack . jidToText . contactJid
+        convertTime = formatTime defaultTimeLocale "%y/%m/%d %H:%M:%S"
