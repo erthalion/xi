@@ -116,7 +116,14 @@ handleCommand :: Session -> Contact -> ByteString -> IO()
 handleCommand sess contact message = do
     sendMsg sess message (contactJid contact)
     localTime <- getZonedTime
-    runResourceT $ yield (prettify contact localTime message) $$ sinkIOHandle $ openFile (outputName contact) AppendMode
+    let meJid = jidFromText "me"
+    case meJid of
+        Just value -> do
+            let me = Contact {
+                contactJid=value,
+                name="me"
+            }
+            runResourceT $ yield (prettify me localTime message) $$ sinkIOHandle $ openFile (outputName contact) AppendMode
 
 
 sendMsg :: Session -> ByteString -> Jid -> IO()

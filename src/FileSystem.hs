@@ -13,6 +13,7 @@ import           Data.ByteString           (ByteString)
 import qualified Data.ByteString           as S
 import qualified Data.Text                 as T
 import qualified Data.ByteString.Char8     as BC
+import           Data.Time                 (getZonedTime, ZonedTime)
 import           Data.Conduit              (MonadResource, Source, bracketP,
                                             runResourceT, ($$), ($=), yield)
 import           Data.Conduit.Binary       (sourceFileRange, sinkIOHandle)
@@ -30,17 +31,20 @@ import           System.IO
 import qualified System.Directory          as SD
 
 import           Models
+import           Utils
 
 
 tryIO :: IO a -> IO (Either IOException a)
 tryIO = try
 
 
-printMsg file [] = return ()
-printMsg file (m:msgs) = do
+printMsg contact [] = return ()
+printMsg contact (m:msgs) = do
     let content = BC.pack $ T.unpack (bodyContent m) ++ "\n"
-    runResourceT $ yield content $$ sinkIOHandle $ openFile file AppendMode
-    printMsg file msgs
+    let file = outputName contact
+    localTime <- getZonedTime
+    runResourceT $ yield (prettify contact localTime content) $$ sinkIOHandle $ openFile file AppendMode
+    printMsg contact msgs
 
 
 sourceFileOutputForever sess contactList = forever $ do
@@ -50,7 +54,7 @@ sourceFileOutputForever sess contactList = forever $ do
             let getByJid = \c -> (contactJid c) == (toBare value)
             let contact = head $ filter getByJid contactList
             liftIO $ print contact
-            printMsg (outputName contact) $ imBody $ fromJust $ getIM msg
+            printMsg contact $ imBody $ fromJust $ getIM msg
         Nothing -> return ()
 
 
