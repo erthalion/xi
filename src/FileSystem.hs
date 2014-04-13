@@ -88,7 +88,10 @@ createFiles (c:contacts) = do
     let outFilePath = filePath ++ "/out"
 
     createContactDirectory filePath
+
     createContactFile inFilePath
+    runResourceT $ yield "" $$ sinkIOHandle $ openFile inFilePath WriteMode
+
     createContactFile outFilePath
 
     createFiles contacts
