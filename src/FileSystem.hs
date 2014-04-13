@@ -53,7 +53,6 @@ sourceFileOutputForever sess contactList = forever $ do
         Just value -> do
             let getByJid = \c -> (contactJid c) == (toBare value)
             let contact = head $ filter getByJid contactList
-            liftIO $ print contact
             printMsg contact $ imBody $ fromJust $ getIM msg
         Nothing -> return ()
 
@@ -88,8 +87,26 @@ createFiles (c:contacts) = do
     let inFilePath = filePath ++ "/in"
     let outFilePath = filePath ++ "/out"
 
-    SD.createDirectory $ filePath
-    openFile inFilePath WriteMode
-    openFile outFilePath WriteMode
+    createContactDirectory filePath
+    createContactFile inFilePath
+    createContactFile outFilePath
 
     createFiles contacts
+
+    where
+        createContactDirectory :: FilePath -> IO ()
+        createContactDirectory filePath = do
+            dirExist <- SD.doesDirectoryExist filePath
+            if not dirExist
+                then SD.createDirectory $ filePath
+                else return ()
+
+        createContactFile :: FilePath -> IO ()
+        createContactFile filePath = do
+            fileExist <- SD.doesFileExist filePath
+            if not fileExist
+                then do 
+                    openFile filePath WriteMode
+                    return ()
+
+                else return ()
