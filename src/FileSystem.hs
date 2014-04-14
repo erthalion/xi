@@ -109,7 +109,8 @@ createFiles (c:contacts) = do
             fileExist <- SD.doesFileExist filePath
             if not fileExist
                 then do 
-                    openFile filePath WriteMode
+                    file <- openFile filePath WriteMode
+                    hClose file
                     return ()
 
                 else return ()
