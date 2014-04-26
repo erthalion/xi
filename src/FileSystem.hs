@@ -30,6 +30,8 @@ import           Network.Xmpp
 import           Network.Xmpp.IM
 import           System.IO
 import qualified System.Directory          as SD
+import           DBus.Notify
+import           DBus.Client
 
 import           Models
 import           Utils
@@ -39,12 +41,24 @@ tryIO :: IO a -> IO (Either IOException a)
 tryIO = try
 
 
+sendNotification contact message = do
+    client <- connectSession
+    let startNote = blankNote {
+        appName="xi",
+        summary=(T.unpack $ jidToText $ contactJid contact),
+        body=(Just $ Text $ T.unpack message)
+    }
+    notification <- notify client startNote
+    return ()
+
+
 printMsg contact [] = return ()
 printMsg contact (m:msgs) = do
     let content = TE.encodeUtf8(bodyContent m)
     let file = outputName contact
     localTime <- getZonedTime
     runResourceT $ yield (prettify contact localTime content) $$ sinkIOHandle $ openFile file AppendMode
+    sendNotification contact (bodyContent m)
     printMsg contact msgs
 
 
