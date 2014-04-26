@@ -15,7 +15,9 @@ import qualified Data.Text                 as T
 import           Models
 
 prettify :: Contact -> ZonedTime -> ByteString -> ByteString
-prettify contact time message = SC.pack (TP.printf "%s at %s: %s" (convertContact contact) (convertTime time) (SC.unpack message)::String)
+prettify contact time message = SC.pack (TP.printf "%s at %s: %s\n" (convertContact contact) (convertTime time) (convertMessage message)::String)
     where
         convertContact = T.unpack . jidToText . contactJid
         convertTime = formatTime defaultTimeLocale "%y/%m/%d %H:%M:%S"
+        convertMessage = trim . SC.unpack
+        trim = unwords . words

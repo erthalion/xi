@@ -12,6 +12,7 @@ import           Data.Maybe
 import           Data.ByteString           (ByteString)
 import qualified Data.ByteString           as S
 import qualified Data.Text                 as T
+import qualified Data.Text.Encoding        as TE
 import qualified Data.ByteString.Char8     as BC
 import           Data.Time                 (getZonedTime, ZonedTime)
 import           Data.Conduit              (MonadResource, Source, bracketP,
@@ -40,7 +41,7 @@ tryIO = try
 
 printMsg contact [] = return ()
 printMsg contact (m:msgs) = do
-    let content = BC.pack $ T.unpack (bodyContent m) ++ "\n"
+    let content = TE.encodeUtf8(bodyContent m)
     let file = outputName contact
     localTime <- getZonedTime
     runResourceT $ yield (prettify contact localTime content) $$ sinkIOHandle $ openFile file AppendMode
