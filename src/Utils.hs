@@ -11,6 +11,7 @@ import           Network.Xmpp
 import           Network.Xmpp.IM
 import qualified Data.ByteString.Char8     as SC
 import qualified Data.Text                 as T
+import           Data.String.Utils         (strip)
 
 import           Models
 
@@ -19,5 +20,4 @@ prettify contact time message = SC.pack (TP.printf "%s at %s: %s\n" (convertCont
     where
         convertContact = T.unpack . jidToText . contactJid
         convertTime = formatTime defaultTimeLocale "%y/%m/%d %H:%M:%S"
-        convertMessage = trim . SC.unpack
-        trim = unwords . words
+        convertMessage = strip . SC.unpack
