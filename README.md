@@ -26,6 +26,8 @@ xi
 
 Client will make a several directories like **contact_name@server.com** with **in**/**out** files in the current directory.
 
+There is a small [video example](http://youtu.be/UC2nSmdPc0I)
+
 Links
 ====
 [Blog post](http://erthalion.info/2014/03/25/xi/)
